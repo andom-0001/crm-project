@@ -8,15 +8,17 @@ const {
 } = require("../controllers/saleController");
 
 const protect = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.get("/", protect, getSales);
+// ADMIN + SALES
+router.get("/", protect, authorize("ADMIN", "SALES"), getSales);
 
-router.post("/", protect, createSale);
+router.get("/:id", protect, authorize("ADMIN", "SALES"), getSaleById);
 
-router.get("/:id", protect, getSaleById);
+router.post("/", protect, authorize("ADMIN", "SALES"), createSale);
 
-router.put("/:id", protect, updateSale);
+router.put("/:id", protect, authorize("ADMIN", "SALES"), updateSale);
 
 module.exports = router;

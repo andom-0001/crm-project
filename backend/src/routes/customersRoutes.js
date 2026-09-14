@@ -9,17 +9,20 @@ const {
 } = require("../controllers/customerController");
 
 const protect = require("../middleware/authMiddleware");
+const authorize = require("../middleware/roleMiddleware");
 
 const router = express.Router();
 
-router.get("/", protect, getCustomers);
+// ADMIN + SALES
+router.get("/", protect, authorize("ADMIN", "SALES"), getCustomers);
 
-router.get("/:id", protect, getCustomerById);
+router.get("/:id", protect, authorize("ADMIN", "SALES"), getCustomerById);
 
-router.post("/", protect, createCustomer);
+router.post("/", protect, authorize("ADMIN", "SALES"), createCustomer);
 
-router.put("/:id", protect, updateCustomer);
+router.put("/:id", protect, authorize("ADMIN", "SALES"), updateCustomer);
 
-router.delete("/:id", protect, deleteCustomer);
+// ADMIN ONLY
+router.delete("/:id", protect, authorize("ADMIN"), deleteCustomer);
 
 module.exports = router;

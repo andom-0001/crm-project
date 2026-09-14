@@ -6,6 +6,8 @@ const connectDB = require("./config/db");
 const userRoutes = require("./routes/userRoutes");
 const customerRoutes = require("./routes/customersRoutes");
 const leadRoutes = require("./routes/leadRoutes");
+const taskRoutes = require("./routes/taskRoutes");
+const saleRoutes = require("./routes/saleRoutes");
 
 const app = express();
 
@@ -18,6 +20,8 @@ app.use(express.json());
 app.use("/api/users", userRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/leads", leadRoutes);
+app.use("/api/tasks", taskRoutes);
+app.use("/api/sales", saleRoutes);
 // Test route
 app.get("/", (req, res) => {
     res.json({

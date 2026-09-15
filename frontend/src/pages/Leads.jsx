@@ -3,59 +3,194 @@ import api from "../services/api";
 
 function Leads() {
     const [leads, setLeads] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [editingId, setEditingId] = useState(null);
+    const [users, setUsers] = useState([]);
 
     const [form, setForm] = useState({
         name: "",
         contactInfo: "",
         source: "Referral",
-        status: "NEW"
+        status: "NEW",
+        assignedRep: ""
     });
+
+    const [filters, setFilters] = useState({
+        status: "",
+        source: "",
+        assignedRep: ""
+    });
+
+    const [editingId, setEditingId] = useState(null);
+
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const itemsPerPage = 5;
+
+    const user = JSON.parse(
+        localStorage.getItem("user")
+    );
 
     const fetchLeads = async () => {
         try {
-            const response = await api.get("/leads");
-            setLeads(response.data.leads);
-        } catch (err) {
+            setLoading(true);
+            setError("");
+
+            const response = await api.get(
+                "/leads"
+            );
+
+            setLeads(
+                response.data.leads ||
+                response.data ||
+                []
+            );
+        } catch (error) {
+            console.error(error);
+
             setError(
-                err.response?.data?.message || "Failed to load leads"
+                error.response?.data?.message ||
+                "Failed to load leads."
             );
         } finally {
             setLoading(false);
         }
     };
 
+    const fetchUsers = async () => {
+        try {
+            const response = await api.get(
+                "/users"
+            );
+
+            setUsers(
+                response.data.users ||
+                response.data ||
+                []
+            );
+        } catch (error) {
+            console.error(error);
+
+            setError(
+                error.response?.data?.message ||
+                "Failed to load users."
+            );
+        }
+    };
+
     useEffect(() => {
         fetchLeads();
+        fetchUsers();
     }, []);
 
-    const handleChange = (e) => {
+    const handleChange = (event) => {
         setForm({
             ...form,
-            [e.target.name]: e.target.value
+            [event.target.name]: event.target.value
         });
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
+    const handleFilterChange = (event) => {
+        setFilters({
+            ...filters,
+            [event.target.name]: event.target.value
+        });
+
+        setCurrentPage(1);
+    };
+
+    const resetForm = () => {
+        setForm({
+            name: "",
+            contactInfo: "",
+            source: "Referral",
+            status: "NEW",
+            assignedRep: ""
+        });
+
+        setEditingId(null);
+    };
+
+    const clearFilters = () => {
+        setFilters({
+            status: "",
+            source: "",
+            assignedRep: ""
+        });
+
+        setCurrentPage(1);
+    };
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
 
         try {
+            setSaving(true);
+            setError("");
+            setSuccess("");
+
+            if (!form.name.trim()) {
+                setError(
+                    "Lead name is required."
+                );
+                return;
+            }
+
+            if (!form.contactInfo.trim()) {
+                setError(
+                    "Contact information is required."
+                );
+                return;
+            }
+
+            const leadData = {
+                name: form.name,
+                contactInfo: form.contactInfo,
+                source: form.source,
+                status: form.status
+            };
+
+            if (form.assignedRep) {
+                leadData.assignedRep =
+                    form.assignedRep;
+            }
+
             if (editingId) {
-                await api.put(`/leads/${editingId}`, form);
-                setEditingId(null);
+                await api.put(
+                    `/leads/${editingId}`,
+                    leadData
+                );
+
+                setSuccess(
+                    "Lead updated successfully."
+                );
             } else {
-                await api.post("/leads", form);
+                await api.post(
+                    "/leads",
+                    leadData
+                );
+
+                setSuccess(
+                    "Lead created successfully."
+                );
             }
 
             resetForm();
+            setCurrentPage(1);
             fetchLeads();
-        } catch (err) {
+        } catch (error) {
+            console.error(error);
+
             setError(
-                err.response?.data?.message || "Operation failed"
+                error.response?.data?.message ||
+                "Failed to save lead."
             );
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -64,9 +199,24 @@ function Leads() {
 
         setForm({
             name: lead.name || "",
-            contactInfo: lead.contactInfo || "",
-            source: lead.source || "Referral",
-            status: lead.status || "NEW"
+            contactInfo:
+                lead.contactInfo || "",
+            source:
+                lead.source || "Referral",
+            status:
+                lead.status || "NEW",
+            assignedRep:
+                lead.assignedRep?._id ||
+                lead.assignedRep ||
+                ""
+        });
+
+        setError("");
+        setSuccess("");
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
         });
     };
 
@@ -80,147 +230,621 @@ function Leads() {
         }
 
         try {
-            await api.delete(`/leads/${id}`);
+            setError("");
+            setSuccess("");
+
+            await api.delete(
+                `/leads/${id}`
+            );
+
+            setSuccess(
+                "Lead deleted successfully."
+            );
+
             fetchLeads();
-        } catch (err) {
+        } catch (error) {
+            console.error(error);
+
             setError(
-                err.response?.data?.message || "Failed to delete lead"
+                error.response?.data?.message ||
+                "Failed to delete lead."
             );
         }
     };
 
-    const resetForm = () => {
-        setEditingId(null);
+    const getStatusClass = (status) => {
+        switch (status) {
+            case "NEW":
+                return "badge badge-blue";
 
-        setForm({
-            name: "",
-            contactInfo: "",
-            source: "Referral",
-            status: "NEW"
-        });
+            case "CONTACTED":
+                return "badge badge-yellow";
+
+            case "QUALIFIED":
+                return "badge badge-purple";
+
+            case "CONVERTED":
+                return "badge badge-green";
+
+            case "LOST":
+                return "badge badge-red";
+
+            default:
+                return "badge";
+        }
     };
 
-    if (loading) {
-        return <h2>Loading leads...</h2>;
-    }
+    const filteredLeads = leads.filter(
+        (lead) => {
+            const statusMatch =
+                !filters.status ||
+                lead.status === filters.status;
+
+            const sourceMatch =
+                !filters.source ||
+                lead.source === filters.source;
+
+            const assignedRepId =
+                lead.assignedRep?._id ||
+                lead.assignedRep ||
+                "";
+
+            const assignedMatch =
+                !filters.assignedRep ||
+                assignedRepId ===
+                    filters.assignedRep;
+
+            return (
+                statusMatch &&
+                sourceMatch &&
+                assignedMatch
+            );
+        }
+    );
+
+    const totalPages = Math.ceil(
+        filteredLeads.length / itemsPerPage
+    );
+
+    const startIndex =
+        (currentPage - 1) * itemsPerPage;
+
+    const paginatedLeads =
+        filteredLeads.slice(
+            startIndex,
+            startIndex + itemsPerPage
+        );
 
     return (
-        <div style={{ padding: "30px" }}>
-            <h1>Leads</h1>
+        <div className="page">
+
+            <div className="page-header">
+                <div>
+                    <h1>Leads</h1>
+
+                    <p>
+                        Manage, filter, and assign
+                        your sales leads.
+                    </p>
+                </div>
+            </div>
 
             {error && (
-                <p style={{ color: "red" }}>
+                <div className="error-message">
                     {error}
-                </p>
+                </div>
             )}
 
-            <h2>
-                {editingId ? "Edit Lead" : "Add Lead"}
-            </h2>
+            {success && (
+                <div className="success-message">
+                    {success}
+                </div>
+            )}
 
-            <form onSubmit={handleSubmit}>
-                <input
-                    name="name"
-                    placeholder="Lead Name"
-                    value={form.name}
-                    onChange={handleChange}
-                    required
-                />
+            <div className="form-card">
 
-                <input
-                    name="contactInfo"
-                    placeholder="Contact Info"
-                    value={form.contactInfo}
-                    onChange={handleChange}
-                    required
-                />
+                <h2>
+                    {editingId
+                        ? "Edit Lead"
+                        : "Add Lead"}
+                </h2>
 
-                <select
-                    name="source"
-                    value={form.source}
-                    onChange={handleChange}
-                >
-                    <option value="Referral">Referral</option>
-                    <option value="Ads">Ads</option>
-                    <option value="Web">Web</option>
-                </select>
+                <form onSubmit={handleSubmit}>
 
-                <select
-                    name="status"
-                    value={form.status}
-                    onChange={handleChange}
-                >
-                    <option value="NEW">New</option>
-                    <option value="CONTACTED">Contacted</option>
-                    <option value="QUALIFIED">Qualified</option>
-                    <option value="CONVERTED">Converted</option>
-                    <option value="LOST">Lost</option>
-                </select>
+                    <div className="form-grid">
 
-                <br />
-                <br />
+                        <div className="form-group">
+                            <label>
+                                Name *
+                            </label>
 
-                <button type="submit">
-                    {editingId ? "Update Lead" : "Add Lead"}
-                </button>
+                            <input
+                                type="text"
+                                name="name"
+                                value={form.name}
+                                onChange={handleChange}
+                                placeholder="Enter lead name"
+                            />
+                        </div>
 
-                {editingId && (
-                    <button
-                        type="button"
-                        onClick={resetForm}
-                        style={{ marginLeft: "10px" }}
-                    >
-                        Cancel
-                    </button>
-                )}
-            </form>
+                        <div className="form-group">
+                            <label>
+                                Contact Information *
+                            </label>
 
-            <hr />
+                            <input
+                                type="text"
+                                name="contactInfo"
+                                value={
+                                    form.contactInfo
+                                }
+                                onChange={handleChange}
+                                placeholder="Email or phone"
+                            />
+                        </div>
 
-            <h2>Lead List</h2>
+                        <div className="form-group">
+                            <label>
+                                Source
+                            </label>
 
-            {leads.length === 0 ? (
-                <p>No leads found.</p>
-            ) : (
-                leads.map((lead) => (
-                    <div
-                        key={lead._id}
-                        style={{
-                            border: "1px solid #ddd",
-                            padding: "15px",
-                            marginBottom: "10px"
-                        }}
-                    >
-                        <h3>{lead.name}</h3>
+                            <select
+                                name="source"
+                                value={form.source}
+                                onChange={handleChange}
+                            >
+                                <option value="Referral">
+                                    Referral
+                                </option>
 
-                        <p>
-                            Contact: {lead.contactInfo}
-                        </p>
+                                <option value="Ads">
+                                    Ads
+                                </option>
 
-                        <p>
-                            Source: {lead.source}
-                        </p>
+                                <option value="Web">
+                                    Web
+                                </option>
+                            </select>
+                        </div>
 
-                        <p>
-                            Status: {lead.status}
-                        </p>
+                        <div className="form-group">
+                            <label>
+                                Status
+                            </label>
+
+                            <select
+                                name="status"
+                                value={form.status}
+                                onChange={handleChange}
+                            >
+                                <option value="NEW">
+                                    New
+                                </option>
+
+                                <option value="CONTACTED">
+                                    Contacted
+                                </option>
+
+                                <option value="QUALIFIED">
+                                    Qualified
+                                </option>
+
+                                <option value="CONVERTED">
+                                    Converted
+                                </option>
+
+                                <option value="LOST">
+                                    Lost
+                                </option>
+                            </select>
+                        </div>
+
+                        <div className="form-group">
+                            <label>
+                                Assigned Representative
+                            </label>
+
+                            <select
+                                name="assignedRep"
+                                value={
+                                    form.assignedRep
+                                }
+                                onChange={handleChange}
+                            >
+                                <option value="">
+                                    Not assigned
+                                </option>
+
+                                {users.map(
+                                    (userItem) => (
+                                        <option
+                                            key={
+                                                userItem._id
+                                            }
+                                            value={
+                                                userItem._id
+                                            }
+                                        >
+                                            {
+                                                userItem.fullName
+                                            }{" "}
+                                            (
+                                            {
+                                                userItem.role
+                                            }
+                                            )
+                                        </option>
+                                    )
+                                )}
+                            </select>
+                        </div>
+
+                    </div>
+
+                    <div className="action-buttons">
 
                         <button
-                            onClick={() => handleEdit(lead)}
+                            type="submit"
+                            className="primary-button"
+                            disabled={saving}
                         >
-                            Edit
+                            {saving
+                                ? "Saving..."
+                                : editingId
+                                    ? "Update Lead"
+                                    : "Add Lead"}
                         </button>
-                        {JSON.parse(localStorage.getItem("user"))?.role === "ADMIN" && (
+
+                        {editingId && (
                             <button
-                                onClick={() => handleDelete(lead._id)}
-                                style={{ marginLeft: "10px" }}
+                                type="button"
+                                className="secondary-button"
+                                onClick={resetForm}
                             >
-                                Delete
+                                Cancel
                             </button>
                         )}
+
                     </div>
-                ))
-            )}
+
+                </form>
+            </div>
+
+            <div
+                className="form-card"
+                style={{
+                    marginTop: "25px"
+                }}
+            >
+
+                <div className="page-header">
+                    <div>
+                        <h2>
+                            Filter Leads
+                        </h2>
+
+                        <p>
+                            Showing{" "}
+                            {filteredLeads.length} of{" "}
+                            {leads.length} leads
+                        </p>
+                    </div>
+                </div>
+
+                <div className="form-grid">
+
+                    <div className="form-group">
+                        <label>
+                            Status
+                        </label>
+
+                        <select
+                            name="status"
+                            value={filters.status}
+                            onChange={
+                                handleFilterChange
+                            }
+                        >
+                            <option value="">
+                                All Statuses
+                            </option>
+
+                            <option value="NEW">
+                                New
+                            </option>
+
+                            <option value="CONTACTED">
+                                Contacted
+                            </option>
+
+                            <option value="QUALIFIED">
+                                Qualified
+                            </option>
+
+                            <option value="CONVERTED">
+                                Converted
+                            </option>
+
+                            <option value="LOST">
+                                Lost
+                            </option>
+                        </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label>
+                            Source
+                        </label>
+
+                        <select
+                            name="source"
+                            value={filters.source}
+                            onChange={
+                                handleFilterChange
+                            }
+                        >
+                            <option value="">
+                                All Sources
+                            </option>
+
+                            <option value="Referral">
+                                Referral
+                            </option>
+
+                            <option value="Ads">
+                                Ads
+                            </option>
+
+                            <option value="Web">
+                                Web
+                            </option>
+                        </select>
+                    </div>
+
+                    <div className="form-group">
+                        <label>
+                            Assigned Representative
+                        </label>
+
+                        <select
+                            name="assignedRep"
+                            value={
+                                filters.assignedRep
+                            }
+                            onChange={
+                                handleFilterChange
+                            }
+                        >
+                            <option value="">
+                                All Representatives
+                            </option>
+
+                            {users.map(
+                                (userItem) => (
+                                    <option
+                                        key={
+                                            userItem._id
+                                        }
+                                        value={
+                                            userItem._id
+                                        }
+                                    >
+                                        {
+                                            userItem.fullName
+                                        }
+                                    </option>
+                                )
+                            )}
+                        </select>
+                    </div>
+
+                </div>
+
+                <div className="action-buttons">
+
+                    <button
+                        type="button"
+                        className="secondary-button"
+                        onClick={clearFilters}
+                    >
+                        Clear Filters
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div
+                className="form-card"
+                style={{
+                    marginTop: "25px"
+                }}
+            >
+
+                <div className="page-header">
+                    <div>
+                        <h2>
+                            Lead List
+                        </h2>
+
+                        <p>
+                            Page{" "}
+                            {totalPages === 0
+                                ? 0
+                                : currentPage}{" "}
+                            of{" "}
+                            {totalPages}
+                        </p>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div className="empty-state">
+                        Loading leads...
+                    </div>
+                ) : filteredLeads.length === 0 ? (
+                    <div className="empty-state">
+                        No leads match the selected
+                        filters.
+                    </div>
+                ) : (
+                    <>
+                        <div className="table-wrapper">
+
+                            <table className="data-table">
+
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Contact</th>
+                                        <th>Source</th>
+                                        <th>Status</th>
+                                        <th>Assigned Rep</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    {paginatedLeads.map(
+                                        (lead) => (
+                                            <tr
+                                                key={
+                                                    lead._id
+                                                }
+                                            >
+
+                                                <td>
+                                                    <strong>
+                                                        {
+                                                            lead.name
+                                                        }
+                                                    </strong>
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        lead.contactInfo
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        lead.source
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    <span
+                                                        className={
+                                                            getStatusClass(
+                                                                lead.status
+                                                            )
+                                                        }
+                                                    >
+                                                        {
+                                                            lead.status
+                                                        }
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        lead
+                                                            .assignedRep
+                                                            ?.fullName ||
+                                                        "Not assigned"
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    <div className="action-buttons">
+
+                                                        <button
+                                                            className="secondary-button"
+                                                            onClick={() =>
+                                                                handleEdit(
+                                                                    lead
+                                                                )
+                                                            }
+                                                        >
+                                                            Edit
+                                                        </button>
+
+                                                        {user?.role ===
+                                                            "ADMIN" && (
+                                                                <button
+                                                                    className="danger-button"
+                                                                    onClick={() =>
+                                                                        handleDelete(
+                                                                            lead._id
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            )}
+
+                                                    </div>
+                                                </td>
+
+                                            </tr>
+                                        )
+                                    )}
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="pagination">
+
+                                <button
+                                    className="secondary-button"
+                                    disabled={
+                                        currentPage === 1
+                                    }
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            currentPage - 1
+                                        )
+                                    }
+                                >
+                                    Previous
+                                </button>
+
+                                <span>
+                                    Page{" "}
+                                    {currentPage}{" "}
+                                    of{" "}
+                                    {totalPages}
+                                </span>
+
+                                <button
+                                    className="secondary-button"
+                                    disabled={
+                                        currentPage ===
+                                        totalPages
+                                    }
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            currentPage + 1
+                                        )
+                                    }
+                                >
+                                    Next
+                                </button>
+
+                            </div>
+                        )}
+
+                    </>
+                )}
+
+            </div>
+
         </div>
     );
 }

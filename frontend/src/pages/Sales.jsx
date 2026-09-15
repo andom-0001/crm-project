@@ -3,11 +3,9 @@ import api from "../services/api";
 
 function Sales() {
     const [sales, setSales] = useState([]);
-    const [customers, setCustomers] = useState([]);
+    const [customers, setCustomers] =
+        useState([]);
     const [users, setUsers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [editingId, setEditingId] = useState(null);
 
     const [form, setForm] = useState({
         customer: "",
@@ -17,97 +15,111 @@ function Sales() {
         assignedRep: ""
     });
 
+    const [editingId, setEditingId] =
+        useState(null);
+
+    const [loading, setLoading] =
+        useState(true);
+
+    const [saving, setSaving] =
+        useState(false);
+
+    const [error, setError] =
+        useState("");
+
+    const [success, setSuccess] =
+        useState("");
+
+    const [currentPage, setCurrentPage] =
+        useState(1);
+
+    const itemsPerPage = 5;
+
     const fetchSales = async () => {
         try {
-            const response = await api.get("/sales");
-            setSales(response.data.sales);
-        } catch (err) {
-            setError(
-                err.response?.data?.message || "Failed to load sales"
+            setLoading(true);
+            setError("");
+
+            const response = await api.get(
+                "/sales"
             );
+
+            setSales(
+                response.data.sales ||
+                response.data ||
+                []
+            );
+        } catch (error) {
+            console.error(error);
+
+            setError(
+                error.response?.data?.message ||
+                "Failed to load sales."
+            );
+        } finally {
+            setLoading(false);
         }
     };
 
     const fetchCustomers = async () => {
         try {
-            const response = await api.get("/customers");
-            setCustomers(response.data.customers || []);
-        } catch (err) {
-            console.log("Could not load customers");
+            const response =
+                await api.get(
+                    "/customers"
+                );
+
+            setCustomers(
+                response.data.customers ||
+                response.data ||
+                []
+            );
+        } catch (error) {
+            console.error(error);
+
+            setError(
+                error.response?.data?.message ||
+                "Failed to load customers."
+            );
         }
     };
 
     const fetchUsers = async () => {
         try {
-            const response = await api.get("/users");
-            setUsers(response.data.users || []);
-        } catch (err) {
-            console.log("Could not load users");
-        }
-    };
+            const response =
+                await api.get(
+                    "/users"
+                );
 
-    useEffect(() => {
-        const loadData = async () => {
-            await Promise.all([
-                fetchSales(),
-                fetchCustomers(),
-                fetchUsers()
-            ]);
+            setUsers(
+                response.data.users ||
+                response.data ||
+                []
+            );
+        } catch (error) {
+            console.error(error);
 
-            setLoading(false);
-        };
-
-        loadData();
-    }, []);
-
-    const handleChange = (e) => {
-        setForm({
-            ...form,
-            [e.target.name]: e.target.value
-        });
-    };
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
-
-        try {
-            if (editingId) {
-                await api.put(`/sales/${editingId}`, form);
-                setEditingId(null);
-            } else {
-                await api.post("/sales", form);
-            }
-
-            resetForm();
-            fetchSales();
-        } catch (err) {
             setError(
-                err.response?.data?.message || "Operation failed"
+                error.response?.data?.message ||
+                "Failed to load users."
             );
         }
     };
 
-    const handleEdit = (sale) => {
-        setEditingId(sale._id);
+    useEffect(() => {
+        fetchSales();
+        fetchCustomers();
+        fetchUsers();
+    }, []);
 
+    const handleChange = (event) => {
         setForm({
-            customer: sale.customer?._id || sale.customer || "",
-            amount: sale.amount || "",
-            status: sale.status || "PENDING",
-            date: sale.date
-                ? new Date(sale.date).toISOString().slice(0, 16)
-                : "",
-            assignedRep:
-                sale.assignedRep?._id ||
-                sale.assignedRep ||
-                ""
+            ...form,
+            [event.target.name]:
+                event.target.value
         });
     };
 
     const resetForm = () => {
-        setEditingId(null);
-
         setForm({
             customer: "",
             amount: "",
@@ -115,189 +127,621 @@ function Sales() {
             date: "",
             assignedRep: ""
         });
+
+        setEditingId(null);
     };
 
-    if (loading) {
-        return <h2>Loading sales...</h2>;
-    }
+    const handleSubmit = async (event) => {
+        event.preventDefault();
+
+        try {
+            setSaving(true);
+            setError("");
+            setSuccess("");
+
+            if (!form.customer) {
+                setError(
+                    "Please select a customer."
+                );
+                return;
+            }
+
+            if (
+                form.amount === "" ||
+                Number(form.amount) < 0
+            ) {
+                setError(
+                    "Please enter a valid amount."
+                );
+                return;
+            }
+
+            if (!form.assignedRep) {
+                setError(
+                    "Please select an assigned representative."
+                );
+                return;
+            }
+
+            const saleData = {
+                customer:
+                    form.customer,
+                amount:
+                    Number(form.amount),
+                status:
+                    form.status,
+                assignedRep:
+                    form.assignedRep
+            };
+
+            if (form.date) {
+                saleData.date =
+                    form.date;
+            }
+
+            if (editingId) {
+                await api.put(
+                    `/sales/${editingId}`,
+                    saleData
+                );
+
+                setSuccess(
+                    "Sale updated successfully."
+                );
+            } else {
+                await api.post(
+                    "/sales",
+                    saleData
+                );
+
+                setSuccess(
+                    "Sale created successfully."
+                );
+            }
+
+            resetForm();
+            setCurrentPage(1);
+            fetchSales();
+        } catch (error) {
+            console.error(error);
+
+            setError(
+                error.response?.data?.message ||
+                "Failed to save sale."
+            );
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleEdit = (sale) => {
+        setEditingId(
+            sale._id
+        );
+
+        const formattedDate =
+            sale.date
+                ? new Date(
+                    sale.date
+                )
+                    .toISOString()
+                    .slice(0, 16)
+                : "";
+
+        setForm({
+            customer:
+                sale.customer?._id ||
+                sale.customer ||
+                "",
+
+            amount:
+                sale.amount ?? "",
+
+            status:
+                sale.status ||
+                "PENDING",
+
+            date:
+                formattedDate,
+
+            assignedRep:
+                sale.assignedRep?._id ||
+                sale.assignedRep ||
+                ""
+        });
+
+        setError("");
+        setSuccess("");
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
+    };
+
+    const getStatusClass =
+        (status) => {
+            switch (status) {
+                case "PENDING":
+                    return "badge badge-yellow";
+
+                case "IN_PROGRESS":
+                    return "badge badge-blue";
+
+                case "WON":
+                    return "badge badge-green";
+
+                case "LOST":
+                    return "badge badge-red";
+
+                default:
+                    return "badge";
+            }
+        };
+
+    const totalPages =
+        Math.ceil(
+            sales.length /
+            itemsPerPage
+        );
+
+    const startIndex =
+        (currentPage - 1) *
+        itemsPerPage;
+
+    const paginatedSales =
+        sales.slice(
+            startIndex,
+            startIndex +
+                itemsPerPage
+        );
 
     return (
-        <div style={{ padding: "30px" }}>
-            <h1>Sales Pipeline</h1>
+        <div className="page">
+
+            <div className="page-header">
+                <div>
+                    <h1>
+                        Sales Pipeline
+                    </h1>
+
+                    <p>
+                        Manage deals and update
+                        sales status.
+                    </p>
+                </div>
+            </div>
 
             {error && (
-                <p style={{ color: "red" }}>
+                <div className="error-message">
                     {error}
-                </p>
+                </div>
             )}
 
-            <h2>
-                {editingId ? "Edit Sale" : "Add Sale"}
-            </h2>
+            {success && (
+                <div className="success-message">
+                    {success}
+                </div>
+            )}
 
-            <form onSubmit={handleSubmit}>
-                <label>Customer:</label>
+            <div className="form-card">
 
-                <select
-                    name="customer"
-                    value={form.customer}
-                    onChange={handleChange}
-                    required
+                <h2>
+                    {editingId
+                        ? "Edit Sale"
+                        : "Add Sale"}
+                </h2>
+
+                <form
+                    onSubmit={
+                        handleSubmit
+                    }
                 >
-                    <option value="">
-                        Select Customer
-                    </option>
 
-                    {customers.map((customer) => (
-                        <option
-                            key={customer._id}
-                            value={customer._id}
-                        >
-                            {customer.name}
-                        </option>
-                    ))}
-                </select>
+                    <div className="form-grid">
 
-                <br />
-                <br />
+                        <div className="form-group">
+                            <label>
+                                Customer *
+                            </label>
 
-                <label>Amount:</label>
+                            <select
+                                name="customer"
+                                value={
+                                    form.customer
+                                }
+                                onChange={
+                                    handleChange
+                                }
+                            >
+                                <option value="">
+                                    Select customer
+                                </option>
 
-                <input
-                    type="number"
-                    name="amount"
-                    placeholder="Amount"
-                    value={form.amount}
-                    onChange={handleChange}
-                    min="0"
-                    required
-                />
+                                {customers.map(
+                                    (
+                                        customer
+                                    ) => (
+                                        <option
+                                            key={
+                                                customer._id
+                                            }
+                                            value={
+                                                customer._id
+                                            }
+                                        >
+                                            {
+                                                customer.name
+                                            }
+                                        </option>
+                                    )
+                                )}
+                            </select>
+                        </div>
 
-                <br />
-                <br />
+                        <div className="form-group">
+                            <label>
+                                Amount *
+                            </label>
 
-                <label>Status:</label>
+                            <input
+                                type="number"
+                                name="amount"
+                                min="0"
+                                step="0.01"
+                                value={
+                                    form.amount
+                                }
+                                onChange={
+                                    handleChange
+                                }
+                                placeholder="Enter amount"
+                            />
+                        </div>
 
-                <select
-                    name="status"
-                    value={form.status}
-                    onChange={handleChange}
-                >
-                    <option value="PENDING">Pending</option>
-                    <option value="IN_PROGRESS">
-                        In Progress
-                    </option>
-                    <option value="WON">Won</option>
-                    <option value="LOST">Lost</option>
-                </select>
+                        <div className="form-group">
+                            <label>
+                                Status
+                            </label>
 
-                <br />
-                <br />
+                            <select
+                                name="status"
+                                value={
+                                    form.status
+                                }
+                                onChange={
+                                    handleChange
+                                }
+                            >
+                                <option value="PENDING">
+                                    Pending
+                                </option>
 
-                <label>Date:</label>
+                                <option value="IN_PROGRESS">
+                                    In Progress
+                                </option>
 
-                <input
-                    type="datetime-local"
-                    name="date"
-                    value={form.date}
-                    onChange={handleChange}
-                />
+                                <option value="WON">
+                                    Won
+                                </option>
 
-                <br />
-                <br />
+                                <option value="LOST">
+                                    Lost
+                                </option>
+                            </select>
+                        </div>
 
-                <label>Assigned Representative:</label>
+                        <div className="form-group">
+                            <label>
+                                Date
+                            </label>
 
-                <select
-                    name="assignedRep"
-                    value={form.assignedRep}
-                    onChange={handleChange}
-                    required
-                >
-                    <option value="">
-                        Select Representative
-                    </option>
+                            <input
+                                type="datetime-local"
+                                name="date"
+                                value={
+                                    form.date
+                                }
+                                onChange={
+                                    handleChange
+                                }
+                            />
+                        </div>
 
-                    {users.map((user) => (
-                        <option
-                            key={user._id}
-                            value={user._id}
-                        >
-                            {user.fullName} ({user.role})
-                        </option>
-                    ))}
-                </select>
+                        <div className="form-group">
+                            <label>
+                                Assigned Representative *
+                            </label>
 
-                <br />
-                <br />
+                            <select
+                                name="assignedRep"
+                                value={
+                                    form.assignedRep
+                                }
+                                onChange={
+                                    handleChange
+                                }
+                            >
+                                <option value="">
+                                    Select representative
+                                </option>
 
-                <button type="submit">
-                    {editingId ? "Update Sale" : "Add Sale"}
-                </button>
+                                {users.map(
+                                    (
+                                        user
+                                    ) => (
+                                        <option
+                                            key={
+                                                user._id
+                                            }
+                                            value={
+                                                user._id
+                                            }
+                                        >
+                                            {
+                                                user.fullName
+                                            }{" "}
+                                            (
+                                            {
+                                                user.role
+                                            }
+                                            )
+                                        </option>
+                                    )
+                                )}
+                            </select>
+                        </div>
 
-                {editingId && (
-                    <button
-                        type="button"
-                        onClick={resetForm}
-                        style={{ marginLeft: "10px" }}
-                    >
-                        Cancel
-                    </button>
-                )}
-            </form>
+                    </div>
 
-            <hr />
-
-            <h2>Sales List</h2>
-
-            {sales.length === 0 ? (
-                <p>No sales found.</p>
-            ) : (
-                sales.map((sale) => (
-                    <div
-                        key={sale._id}
-                        style={{
-                            border: "1px solid #ddd",
-                            padding: "15px",
-                            marginBottom: "10px"
-                        }}
-                    >
-                        <h3>
-                            {sale.customer?.name ||
-                                "Unknown Customer"}
-                        </h3>
-
-                        <p>
-                            Amount: ₹{sale.amount}
-                        </p>
-
-                        <p>
-                            Status: {sale.status}
-                        </p>
-
-                        <p>
-                            Date:{" "}
-                            {sale.date
-                                ? new Date(
-                                      sale.date
-                                  ).toLocaleString()
-                                : "N/A"}
-                        </p>
-
-                        <p>
-                            Assigned Rep:{" "}
-                            {sale.assignedRep?.fullName ||
-                                "N/A"}
-                        </p>
+                    <div className="action-buttons">
 
                         <button
-                            onClick={() => handleEdit(sale)}
+                            type="submit"
+                            className="primary-button"
+                            disabled={
+                                saving
+                            }
                         >
-                            Edit
+                            {saving
+                                ? "Saving..."
+                                : editingId
+                                    ? "Update Sale"
+                                    : "Add Sale"}
                         </button>
+
+                        {editingId && (
+                            <button
+                                type="button"
+                                className="secondary-button"
+                                onClick={
+                                    resetForm
+                                }
+                            >
+                                Cancel
+                            </button>
+                        )}
+
                     </div>
-                ))
-            )}
+
+                </form>
+            </div>
+
+            <div
+                className="form-card"
+                style={{
+                    marginTop:
+                        "25px"
+                }}
+            >
+
+                <div className="page-header">
+                    <div>
+                        <h2>
+                            Sales List
+                        </h2>
+
+                        <p>
+                            Showing{" "}
+                            {
+                                paginatedSales.length
+                            }{" "}
+                            of{" "}
+                            {
+                                sales.length
+                            }{" "}
+                            sales
+                        </p>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div className="empty-state">
+                        Loading sales...
+                    </div>
+                ) : sales.length === 0 ? (
+                    <div className="empty-state">
+                        No sales found.
+                    </div>
+                ) : (
+                    <>
+                        <div className="table-wrapper">
+
+                            <table className="data-table">
+
+                                <thead>
+                                    <tr>
+                                        <th>
+                                            Customer
+                                        </th>
+
+                                        <th>
+                                            Amount
+                                        </th>
+
+                                        <th>
+                                            Status
+                                        </th>
+
+                                        <th>
+                                            Date
+                                        </th>
+
+                                        <th>
+                                            Assigned Rep
+                                        </th>
+
+                                        <th>
+                                            Actions
+                                        </th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    {paginatedSales.map(
+                                        (
+                                            sale
+                                        ) => (
+                                            <tr
+                                                key={
+                                                    sale._id
+                                                }
+                                            >
+
+                                                <td>
+                                                    <strong>
+                                                        {
+                                                            sale
+                                                                .customer
+                                                                ?.name ||
+                                                            "Unknown customer"
+                                                        }
+                                                    </strong>
+                                                </td>
+
+                                                <td>
+                                                    ₹
+                                                    {Number(
+                                                        sale.amount ||
+                                                        0
+                                                    ).toLocaleString(
+                                                        "en-IN",
+                                                        {
+                                                            minimumFractionDigits:
+                                                                2
+                                                        }
+                                                    )}
+                                                </td>
+
+                                                <td>
+                                                    <span
+                                                        className={getStatusClass(
+                                                            sale.status
+                                                        )}
+                                                    >
+                                                        {
+                                                            sale.status
+                                                        }
+                                                    </span>
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        sale.date
+                                                            ? new Date(
+                                                                sale.date
+                                                            ).toLocaleString()
+                                                            : "-"
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        sale
+                                                            .assignedRep
+                                                            ?.fullName ||
+                                                        "Not assigned"
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    <button
+                                                        className="secondary-button"
+                                                        onClick={() =>
+                                                            handleEdit(
+                                                                sale
+                                                            )
+                                                        }
+                                                    >
+                                                        Edit
+                                                    </button>
+                                                </td>
+
+                                            </tr>
+                                        )
+                                    )}
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="pagination">
+
+                                <button
+                                    className="secondary-button"
+                                    disabled={
+                                        currentPage ===
+                                        1
+                                    }
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            currentPage -
+                                                1
+                                        )
+                                    }
+                                >
+                                    Previous
+                                </button>
+
+                                <span>
+                                    Page{" "}
+                                    {
+                                        currentPage
+                                    }{" "}
+                                    of{" "}
+                                    {
+                                        totalPages
+                                    }
+                                </span>
+
+                                <button
+                                    className="secondary-button"
+                                    disabled={
+                                        currentPage ===
+                                        totalPages
+                                    }
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            currentPage +
+                                                1
+                                        )
+                                    }
+                                >
+                                    Next
+                                </button>
+
+                            </div>
+                        )}
+
+                    </>
+                )}
+
+            </div>
+
         </div>
     );
 }

@@ -2,16 +2,18 @@ import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import api from "../services/api";
 
-function Login() {
+function Register() {
     const navigate = useNavigate();
 
     const [form, setForm] = useState({
+        fullName: "",
         email: "",
         password: ""
     });
 
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
 
     const handleChange = (event) => {
         setForm({
@@ -26,29 +28,27 @@ function Login() {
         try {
             setLoading(true);
             setError("");
+            setSuccess("");
 
-            const response = await api.post(
-                "/login",
+            await api.post(
+                "/register",
                 form
             );
 
-            localStorage.setItem(
-                "token",
-                response.data.token
+            setSuccess(
+                "Account created successfully. Redirecting to login..."
             );
 
-            localStorage.setItem(
-                "user",
-                JSON.stringify(response.data.user)
-            );
+            setTimeout(() => {
+                navigate("/login");
+            }, 1500);
 
-            navigate("/dashboard");
         } catch (error) {
             console.error(error);
 
             setError(
                 error.response?.data?.message ||
-                "Login failed. Please check your credentials."
+                "Registration failed."
             );
         } finally {
             setLoading(false);
@@ -66,11 +66,11 @@ function Login() {
                     </div>
 
                     <h1>
-                        Welcome Back
+                        Create Account
                     </h1>
 
                     <p>
-                        Sign in to your CRM account
+                        Register as a Sales Representative
                     </p>
                 </div>
 
@@ -80,7 +80,28 @@ function Login() {
                     </div>
                 )}
 
+                {success && (
+                    <div className="success-message">
+                        {success}
+                    </div>
+                )}
+
                 <form onSubmit={handleSubmit}>
+
+                    <div className="form-group">
+                        <label>
+                            Full Name
+                        </label>
+
+                        <input
+                            type="text"
+                            name="fullName"
+                            value={form.fullName}
+                            onChange={handleChange}
+                            placeholder="Enter your full name"
+                            required
+                        />
+                    </div>
 
                     <div className="form-group">
                         <label>
@@ -107,8 +128,9 @@ function Login() {
                             name="password"
                             value={form.password}
                             onChange={handleChange}
-                            placeholder="Enter your password"
+                            placeholder="Create a password"
                             required
+                            minLength="6"
                         />
                     </div>
 
@@ -118,19 +140,19 @@ function Login() {
                         disabled={loading}
                     >
                         {loading
-                            ? "Signing in..."
-                            : "Sign In"}
+                            ? "Creating Account..."
+                            : "Create Account"}
                     </button>
 
                 </form>
 
                 <div className="auth-footer">
                     <span>
-                        Don't have an account?
+                        Already have an account?
                     </span>
 
-                    <Link to="/register">
-                        Create Account
+                    <Link to="/login">
+                        Sign In
                     </Link>
                 </div>
 
@@ -140,4 +162,4 @@ function Login() {
     );
 }
 
-export default Login;
+export default Register;

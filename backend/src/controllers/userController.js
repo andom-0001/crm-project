@@ -27,7 +27,7 @@ const registerUser = async (req, res) => {
             fullName,
             email,
             password: hashedPassword,
-            role: role || "SALES"
+            role: "SALES"
         });
 
         res.status(201).json({

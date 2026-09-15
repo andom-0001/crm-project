@@ -3,9 +3,6 @@ import api from "../services/api";
 
 function Customers() {
     const [customers, setCustomers] = useState([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState("");
-    const [editingId, setEditingId] = useState(null);
 
     const [form, setForm] = useState({
         name: "",
@@ -16,13 +13,42 @@ function Customers() {
         notes: ""
     });
 
+    const [editingId, setEditingId] = useState(null);
+
+    const [loading, setLoading] = useState(true);
+    const [saving, setSaving] = useState(false);
+
+    const [error, setError] = useState("");
+    const [success, setSuccess] = useState("");
+
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const itemsPerPage = 5;
+
+    const user = JSON.parse(
+        localStorage.getItem("user")
+    );
+
     const fetchCustomers = async () => {
         try {
-            const response = await api.get("/customers");
-            setCustomers(response.data.customers);
-        } catch (err) {
+            setLoading(true);
+            setError("");
+
+            const response = await api.get(
+                "/customers"
+            );
+
+            setCustomers(
+                response.data.customers ||
+                response.data ||
+                []
+            );
+        } catch (error) {
+            console.error(error);
+
             setError(
-                err.response?.data?.message || "Failed to load customers"
+                error.response?.data?.message ||
+                "Failed to load customers."
             );
         } finally {
             setLoading(false);
@@ -33,39 +59,71 @@ function Customers() {
         fetchCustomers();
     }, []);
 
-    const handleChange = (e) => {
+    const handleChange = (event) => {
         setForm({
             ...form,
-            [e.target.name]: e.target.value
+            [event.target.name]: event.target.value
         });
     };
 
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        setError("");
+    const resetForm = () => {
+        setForm({
+            name: "",
+            email: "",
+            phone: "",
+            company: "",
+            address: "",
+            notes: ""
+        });
+
+        setEditingId(null);
+    };
+
+    const handleSubmit = async (event) => {
+        event.preventDefault();
 
         try {
-            if (editingId) {
-                await api.put(`/customers/${editingId}`, form);
-                setEditingId(null);
-            } else {
-                await api.post("/customers", form);
+            setSaving(true);
+            setError("");
+            setSuccess("");
+
+            if (!form.name.trim()) {
+                setError("Customer name is required.");
+                return;
             }
 
-            setForm({
-                name: "",
-                email: "",
-                phone: "",
-                company: "",
-                address: "",
-                notes: ""
-            });
+            if (editingId) {
+                await api.put(
+                    `/customers/${editingId}`,
+                    form
+                );
 
+                setSuccess(
+                    "Customer updated successfully."
+                );
+            } else {
+                await api.post(
+                    "/customers",
+                    form
+                );
+
+                setSuccess(
+                    "Customer created successfully."
+                );
+            }
+
+            resetForm();
+            setCurrentPage(1);
             fetchCustomers();
-        } catch (err) {
+        } catch (error) {
+            console.error(error);
+
             setError(
-                err.response?.data?.message || "Operation failed"
+                error.response?.data?.message ||
+                "Failed to save customer."
             );
+        } finally {
+            setSaving(false);
         }
     };
 
@@ -80,6 +138,14 @@ function Customers() {
             address: customer.address || "",
             notes: customer.notes || ""
         });
+
+        setError("");
+        setSuccess("");
+
+        window.scrollTo({
+            top: 0,
+            behavior: "smooth"
+        });
     };
 
     const handleDelete = async (id) => {
@@ -92,147 +158,378 @@ function Customers() {
         }
 
         try {
-            await api.delete(`/customers/${id}`);
+            setError("");
+            setSuccess("");
+
+            await api.delete(
+                `/customers/${id}`
+            );
+
+            setSuccess(
+                "Customer deleted successfully."
+            );
+
             fetchCustomers();
-        } catch (err) {
+        } catch (error) {
+            console.error(error);
+
             setError(
-                err.response?.data?.message || "Failed to delete customer"
+                error.response?.data?.message ||
+                "Failed to delete customer."
             );
         }
     };
 
-    const cancelEdit = () => {
-        setEditingId(null);
+    const totalPages = Math.ceil(
+        customers.length / itemsPerPage
+    );
 
-        setForm({
-            name: "",
-            email: "",
-            phone: "",
-            company: "",
-            address: "",
-            notes: ""
-        });
-    };
+    const startIndex =
+        (currentPage - 1) * itemsPerPage;
 
-    if (loading) {
-        return <h2>Loading customers...</h2>;
-    }
+    const paginatedCustomers =
+        customers.slice(
+            startIndex,
+            startIndex + itemsPerPage
+        );
 
     return (
-        <div style={{ padding: "30px" }}>
-            <h1>Customers</h1>
+        <div className="page">
+
+            <div className="page-header">
+                <div>
+                    <h1>Customers</h1>
+
+                    <p>
+                        Manage your customer records.
+                    </p>
+                </div>
+            </div>
 
             {error && (
-                <p style={{ color: "red" }}>
+                <div className="error-message">
                     {error}
-                </p>
+                </div>
             )}
 
-            <h2>
-                {editingId ? "Edit Customer" : "Add Customer"}
-            </h2>
+            {success && (
+                <div className="success-message">
+                    {success}
+                </div>
+            )}
 
-            <form onSubmit={handleSubmit}>
-                <input
-                    name="name"
-                    placeholder="Name"
-                    value={form.name}
-                    onChange={handleChange}
-                    required
-                />
+            <div className="form-card">
 
-                <input
-                    name="email"
-                    placeholder="Email"
-                    value={form.email}
-                    onChange={handleChange}
-                />
+                <h2>
+                    {editingId
+                        ? "Edit Customer"
+                        : "Add Customer"}
+                </h2>
 
-                <input
-                    name="phone"
-                    placeholder="Phone"
-                    value={form.phone}
-                    onChange={handleChange}
-                />
+                <form onSubmit={handleSubmit}>
 
-                <input
-                    name="company"
-                    placeholder="Company"
-                    value={form.company}
-                    onChange={handleChange}
-                />
+                    <div className="form-grid">
 
-                <input
-                    name="address"
-                    placeholder="Address"
-                    value={form.address}
-                    onChange={handleChange}
-                />
+                        <div className="form-group">
+                            <label>
+                                Name *
+                            </label>
 
-                <textarea
-                    name="notes"
-                    placeholder="Notes"
-                    value={form.notes}
-                    onChange={handleChange}
-                />
+                            <input
+                                type="text"
+                                name="name"
+                                value={form.name}
+                                onChange={handleChange}
+                                placeholder="Enter customer name"
+                            />
+                        </div>
 
-                <br />
+                        <div className="form-group">
+                            <label>
+                                Email
+                            </label>
 
-                <button type="submit">
-                    {editingId ? "Update Customer" : "Add Customer"}
-                </button>
+                            <input
+                                type="email"
+                                name="email"
+                                value={form.email}
+                                onChange={handleChange}
+                                placeholder="Enter email"
+                            />
+                        </div>
 
-                {editingId && (
-                    <button
-                        type="button"
-                        onClick={cancelEdit}
-                        style={{ marginLeft: "10px" }}
-                    >
-                        Cancel
-                    </button>
-                )}
-            </form>
+                        <div className="form-group">
+                            <label>
+                                Phone
+                            </label>
 
-            <hr />
+                            <input
+                                type="text"
+                                name="phone"
+                                value={form.phone}
+                                onChange={handleChange}
+                                placeholder="Enter phone number"
+                            />
+                        </div>
 
-            <h2>Customer List</h2>
+                        <div className="form-group">
+                            <label>
+                                Company
+                            </label>
 
-            {customers.length === 0 ? (
-                <p>No customers found.</p>
-            ) : (
-                customers.map((customer) => (
-                    <div
-                        key={customer._id}
-                        style={{
-                            border: "1px solid #ddd",
-                            padding: "15px",
-                            marginBottom: "10px"
-                        }}
-                    >
-                        <h3>{customer.name}</h3>
+                            <input
+                                type="text"
+                                name="company"
+                                value={form.company}
+                                onChange={handleChange}
+                                placeholder="Enter company"
+                            />
+                        </div>
 
-                        <p>Email: {customer.email || "N/A"}</p>
-                        <p>Phone: {customer.phone || "N/A"}</p>
-                        <p>Company: {customer.company || "N/A"}</p>
-                        <p>Address: {customer.address || "N/A"}</p>
+                        <div className="form-group">
+                            <label>
+                                Address
+                            </label>
+
+                            <input
+                                type="text"
+                                name="address"
+                                value={form.address}
+                                onChange={handleChange}
+                                placeholder="Enter address"
+                            />
+                        </div>
+
+                        <div className="form-group">
+                            <label>
+                                Notes
+                            </label>
+
+                            <input
+                                type="text"
+                                name="notes"
+                                value={form.notes}
+                                onChange={handleChange}
+                                placeholder="Enter notes"
+                            />
+                        </div>
+
+                    </div>
+
+                    <div className="action-buttons">
 
                         <button
-                            onClick={() => handleEdit(customer)}
+                            type="submit"
+                            className="primary-button"
+                            disabled={saving}
                         >
-                            Edit
+                            {saving
+                                ? "Saving..."
+                                : editingId
+                                    ? "Update Customer"
+                                    : "Add Customer"}
                         </button>
 
-                        {JSON.parse(localStorage.getItem("user"))?.role === "ADMIN" && (
+                        {editingId && (
                             <button
-                                onClick={() => handleDelete(customer._id)}
-                                style={{ marginLeft: "10px" }}
+                                type="button"
+                                className="secondary-button"
+                                onClick={resetForm}
                             >
-                                Delete
+                                Cancel
                             </button>
                         )}
+
                     </div>
-                ))
-            )}
+
+                </form>
+            </div>
+
+            <div
+                className="form-card"
+                style={{
+                    marginTop: "25px"
+                }}
+            >
+
+                <div className="page-header">
+                    <div>
+                        <h2>
+                            Customer List
+                        </h2>
+
+                        <p>
+                            Showing{" "}
+                            {paginatedCustomers.length}{" "}
+                            of{" "}
+                            {customers.length} customers
+                        </p>
+                    </div>
+                </div>
+
+                {loading ? (
+                    <div className="empty-state">
+                        Loading customers...
+                    </div>
+                ) : customers.length === 0 ? (
+                    <div className="empty-state">
+                        No customers found.
+                    </div>
+                ) : (
+                    <>
+                        <div className="table-wrapper">
+
+                            <table className="data-table">
+
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Phone</th>
+                                        <th>Company</th>
+                                        <th>Assigned Rep</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+
+                                <tbody>
+
+                                    {paginatedCustomers.map(
+                                        (customer) => (
+                                            <tr
+                                                key={
+                                                    customer._id
+                                                }
+                                            >
+
+                                                <td>
+                                                    <strong>
+                                                        {
+                                                            customer.name
+                                                        }
+                                                    </strong>
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        customer.email ||
+                                                        "-"
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        customer.phone ||
+                                                        "-"
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        customer.company ||
+                                                        "-"
+                                                    }
+                                                </td>
+
+                                                <td>
+                                                    {
+                                                        customer
+                                                            .assignedRep
+                                                            ?.fullName ||
+                                                        "Not assigned"
+                                                    }
+                                                </td>
+
+                                                <td>
+
+                                                    <div className="action-buttons">
+
+                                                        <button
+                                                            className="secondary-button"
+                                                            onClick={() =>
+                                                                handleEdit(
+                                                                    customer
+                                                                )
+                                                            }
+                                                        >
+                                                            Edit
+                                                        </button>
+
+                                                        {user?.role ===
+                                                            "ADMIN" && (
+                                                                <button
+                                                                    className="danger-button"
+                                                                    onClick={() =>
+                                                                        handleDelete(
+                                                                            customer._id
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    Delete
+                                                                </button>
+                                                            )}
+
+                                                    </div>
+
+                                                </td>
+
+                                            </tr>
+                                        )
+                                    )}
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                        {totalPages > 1 && (
+                            <div className="pagination">
+
+                                <button
+                                    className="secondary-button"
+                                    disabled={
+                                        currentPage === 1
+                                    }
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            currentPage - 1
+                                        )
+                                    }
+                                >
+                                    Previous
+                                </button>
+
+                                <span>
+                                    Page{" "}
+                                    {currentPage}{" "}
+                                    of{" "}
+                                    {totalPages}
+                                </span>
+
+                                <button
+                                    className="secondary-button"
+                                    disabled={
+                                        currentPage ===
+                                        totalPages
+                                    }
+                                    onClick={() =>
+                                        setCurrentPage(
+                                            currentPage + 1
+                                        )
+                                    }
+                                >
+                                    Next
+                                </button>
+
+                            </div>
+                        )}
+
+                    </>
+                )}
+
+            </div>
+
         </div>
     );
 }

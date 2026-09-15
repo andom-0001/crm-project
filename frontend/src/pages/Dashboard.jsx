@@ -1,12 +1,7 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 
 function Dashboard() {
-    const navigate = useNavigate();
-
-    const user = JSON.parse(localStorage.getItem("user"));
-
     const [stats, setStats] = useState({
         customers: 0,
         leads: 0,
@@ -17,9 +12,16 @@ function Dashboard() {
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState("");
 
+    const user = JSON.parse(
+        localStorage.getItem("user")
+    );
+
     useEffect(() => {
-        const fetchStats = async () => {
+        const fetchDashboardData = async () => {
             try {
+                setLoading(true);
+                setError("");
+
                 const [
                     customersResponse,
                     leadsResponse,
@@ -32,141 +34,198 @@ function Dashboard() {
                     api.get("/sales")
                 ]);
 
+                const customers =
+                    customersResponse.data.customers ||
+                    customersResponse.data ||
+                    [];
+
+                const leads =
+                    leadsResponse.data.leads ||
+                    leadsResponse.data ||
+                    [];
+
+                const tasks =
+                    tasksResponse.data.tasks ||
+                    tasksResponse.data ||
+                    [];
+
+                const sales =
+                    salesResponse.data.sales ||
+                    salesResponse.data ||
+                    [];
+
                 setStats({
-                    customers:
-                        customersResponse.data.customers.length,
-
-                    leads:
-                        leadsResponse.data.leads.length,
-
-                    tasks:
-                        tasksResponse.data.tasks.length,
-
-                    sales:
-                        salesResponse.data.sales.length
+                    customers: customers.length,
+                    leads: leads.length,
+                    tasks: tasks.length,
+                    sales: sales.length
                 });
-            } catch (err) {
+            } catch (error) {
+                console.error(
+                    "Dashboard error:",
+                    error
+                );
+
                 setError(
-                    err.response?.data?.message ||
-                    "Failed to load dashboard"
+                    error.response?.data?.message ||
+                    "Failed to load dashboard data."
                 );
             } finally {
                 setLoading(false);
             }
         };
 
-        fetchStats();
+        fetchDashboardData();
     }, []);
 
-    const handleLogout = () => {
-        localStorage.removeItem("token");
-        localStorage.removeItem("user");
-
-        navigate("/login");
-    };
-
-    if (loading) {
-        return <h2>Loading dashboard...</h2>;
-    }
-
     return (
-        <div style={styles.container}>
+        <div className="page">
 
-            <h1>CRM Dashboard</h1>
+            {/* Page Header */}
+            <div className="page-header">
+                <div>
+                    <h1>Dashboard</h1>
 
-            <p>
-                Welcome, <strong>{user?.fullName}</strong>
-            </p>
-
-            <p>
-                Role: <strong>{user?.role}</strong>
-            </p>
-
-            {error && (
-                <p style={{ color: "red" }}>
-                    {error}
-                </p>
-            )}
-
-            <div style={styles.grid}>
-
-                <div style={styles.card}>
-                    <h2>{stats.customers}</h2>
-                    <p>Customers</p>
-                    <button
-                        onClick={() => navigate("/customers")}
-                    >
-                        View Customers
-                    </button>
+                    <p>
+                        Welcome back,{" "}
+                        <strong>
+                            {user?.fullName || "User"}
+                        </strong>
+                        .
+                    </p>
                 </div>
-
-                <div style={styles.card}>
-                    <h2>{stats.leads}</h2>
-                    <p>Leads</p>
-                    <button
-                        onClick={() => navigate("/leads")}
-                    >
-                        View Leads
-                    </button>
-                </div>
-
-                <div style={styles.card}>
-                    <h2>{stats.tasks}</h2>
-                    <p>Tasks</p>
-                    <button
-                        onClick={() => navigate("/tasks")}
-                    >
-                        View Tasks
-                    </button>
-                </div>
-
-                <div style={styles.card}>
-                    <h2>{stats.sales}</h2>
-                    <p>Sales</p>
-                    <button
-                        onClick={() => navigate("/sales")}
-                    >
-                        View Sales
-                    </button>
-                </div>
-
             </div>
 
-            <button
-                onClick={handleLogout}
-                style={styles.logout}
-            >
-                Logout
-            </button>
+            {/* Error */}
+            {error && (
+                <div className="error-message">
+                    {error}
+                </div>
+            )}
 
+            {/* Loading */}
+            {loading ? (
+                <div className="empty-state">
+                    Loading dashboard...
+                </div>
+            ) : (
+                <>
+                    {/* Statistics */}
+                    <div className="card-grid">
+
+                        <div className="card">
+                            <div className="card-icon">
+                                👥
+                            </div>
+
+                            <h3>
+                                Customers
+                            </h3>
+
+                            <div className="card-number">
+                                {stats.customers}
+                            </div>
+
+                            <p>
+                                Total customers
+                            </p>
+                        </div>
+
+
+                        <div className="card">
+                            <div className="card-icon">
+                                🎯
+                            </div>
+
+                            <h3>
+                                Leads
+                            </h3>
+
+                            <div className="card-number">
+                                {stats.leads}
+                            </div>
+
+                            <p>
+                                Total leads
+                            </p>
+                        </div>
+
+
+                        <div className="card">
+                            <div className="card-icon">
+                                ✅
+                            </div>
+
+                            <h3>
+                                Tasks
+                            </h3>
+
+                            <div className="card-number">
+                                {stats.tasks}
+                            </div>
+
+                            <p>
+                                Total tasks
+                            </p>
+                        </div>
+
+
+                        <div className="card">
+                            <div className="card-icon">
+                                💰
+                            </div>
+
+                            <h3>
+                                Sales
+                            </h3>
+
+                            <div className="card-number">
+                                {stats.sales}
+                            </div>
+
+                            <p>
+                                Total sales
+                            </p>
+                        </div>
+
+                    </div>
+
+
+                    {/* Welcome Card */}
+                    <div
+                        className="form-card"
+                        style={{
+                            marginTop: "30px"
+                        }}
+                    >
+                        <h2>
+                            CRM Overview
+                        </h2>
+
+                        <p>
+                            Use the navigation menu to
+                            manage your customers, leads,
+                            tasks, and sales pipeline.
+                        </p>
+
+                        <div
+                            style={{
+                                marginTop: "20px",
+                                padding: "15px",
+                                background: "#f9fafb",
+                                borderRadius: "8px"
+                            }}
+                        >
+                            <strong>
+                                Your role:
+                            </strong>{" "}
+                            {user?.role || "USER"}
+                        </div>
+                    </div>
+                </>
+            )}
         </div>
     );
 }
-
-const styles = {
-    container: {
-        padding: "30px"
-    },
-
-    grid: {
-        display: "grid",
-        gridTemplateColumns:
-            "repeat(auto-fit, minmax(200px, 1fr))",
-        gap: "20px",
-        marginTop: "30px"
-    },
-
-    card: {
-        padding: "25px",
-        border: "1px solid #ddd",
-        borderRadius: "10px",
-        background: "#fff"
-    },
-
-    logout: {
-        marginTop: "30px",
-        padding: "10px 20px"
-    }
-};
 
 export default Dashboard;

@@ -3,6 +3,9 @@ const cors = require("cors");
 require("dotenv").config();
 
 const connectDB = require("./config/db");
+const swaggerUi = require("swagger-ui-express");
+const swaggerSpec = require("./config/swagger");
+
 const userRoutes = require("./routes/userRoutes");
 const customerRoutes = require("./routes/customersRoutes");
 const leadRoutes = require("./routes/leadRoutes");
@@ -17,7 +20,8 @@ connectDB();
 // Middleware
 app.use(cors());
 app.use(express.json());
-app.use("/api/users", userRoutes);
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerSpec));
+app.use("/api", userRoutes);
 app.use("/api/customers", customerRoutes);
 app.use("/api/leads", leadRoutes);
 app.use("/api/tasks", taskRoutes);

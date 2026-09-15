@@ -222,12 +222,14 @@ function Customers() {
                             Edit
                         </button>
 
-                        <button
-                            onClick={() => handleDelete(customer._id)}
-                            style={{ marginLeft: "10px" }}
-                        >
-                            Delete
-                        </button>
+                        {JSON.parse(localStorage.getItem("user"))?.role === "ADMIN" && (
+                            <button
+                                onClick={() => handleDelete(customer._id)}
+                                style={{ marginLeft: "10px" }}
+                            >
+                                Delete
+                            </button>
+                        )}
                     </div>
                 ))
             )}

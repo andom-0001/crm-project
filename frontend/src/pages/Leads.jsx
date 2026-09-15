@@ -210,13 +210,14 @@ function Leads() {
                         >
                             Edit
                         </button>
-
-                        <button
-                            onClick={() => handleDelete(lead._id)}
-                            style={{ marginLeft: "10px" }}
-                        >
-                            Delete
-                        </button>
+                        {JSON.parse(localStorage.getItem("user"))?.role === "ADMIN" && (
+                            <button
+                                onClick={() => handleDelete(lead._id)}
+                                style={{ marginLeft: "10px" }}
+                            >
+                                Delete
+                            </button>
+                        )}
                     </div>
                 ))
             )}

@@ -11,11 +11,12 @@ import Customers from "./pages/Customers";
 import Leads from "./pages/Leads";
 import Tasks from "./pages/Tasks";
 import Sales from "./pages/Sales";
-
+import Navbar from "./components/Navbar";
 
 function App() {
     return (
         <BrowserRouter>
+            <Navbar />
 
             <Routes>
 

@@ -86,8 +86,8 @@ function Tasks() {
             description: task.description || "",
             dueDate: task.dueDate
                 ? new Date(task.dueDate)
-                      .toISOString()
-                      .slice(0, 16)
+                    .toISOString()
+                    .slice(0, 16)
                 : "",
             priority: task.priority || "MEDIUM",
             assignedTo: task.assignedTo?._id || task.assignedTo || "",
@@ -304,12 +304,14 @@ function Tasks() {
                             Edit
                         </button>
 
-                        <button
-                            onClick={() => handleDelete(task._id)}
-                            style={{ marginLeft: "10px" }}
-                        >
-                            Delete
-                        </button>
+                        {JSON.parse(localStorage.getItem("user"))?.role === "ADMIN" && (
+                            <button
+                                onClick={() => handleDelete(task._id)}
+                                style={{ marginLeft: "10px" }}
+                            >
+                                Delete
+                            </button>
+                        )}
                     </div>
                 ))
             )}

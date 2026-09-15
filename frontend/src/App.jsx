@@ -9,6 +9,8 @@ import Dashboard from "./pages/Dashboard";
 import ProtectedRoute from "./components/ProtectedRoute";
 import Customers from "./pages/Customers";
 import Leads from "./pages/Leads";
+import Tasks from "./pages/Tasks";
+import Sales from "./pages/Sales";
 
 
 function App() {
@@ -51,7 +53,22 @@ function App() {
                         </ProtectedRoute>
                     }
                 />
-
+                <Route
+                    path="/tasks"
+                    element={
+                        <ProtectedRoute>
+                            <Tasks />
+                        </ProtectedRoute>
+                    }
+                />
+                <Route
+                    path="/sales"
+                    element={
+                        <ProtectedRoute>
+                            <Sales />
+                        </ProtectedRoute>
+                    }
+                />
             </Routes>
 
         </BrowserRouter>

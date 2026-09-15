@@ -10,6 +10,7 @@ const {
 
 const protect = require("../middleware/authMiddleware");
 const authorize = require("../middleware/roleMiddleware");
+const { getUsers } = require("../controllers/userController");
 
 const router = express.Router();
 
@@ -34,6 +35,12 @@ router.get(
     protect,
     authorize("ADMIN", "SALES"),
     salesTest
+);
+router.get(
+    "/users",
+    protect,
+    authorize("ADMIN", "SALES"),
+    getUsers
 );
 
 module.exports = router;
